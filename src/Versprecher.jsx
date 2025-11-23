@@ -14,15 +14,22 @@ const Versprecher = () => {
 
   const fetchVersprecher = async () => {
     try {
-      const res = await axios.get("/api/versprecher/");
-      setVersprecherListe(res.data || []); // nur echte Daten
+      const res = await axios.get("https://sprechfails-backend.onrender.com/api/versprecher");
+
+      // Falls Backend ein Objekt mit data-Feld liefert
+      const data = Array.isArray(res.data) ? res.data : Array.isArray(res.data?.data) ? res.data.data : [];
+      
+      setVersprecherListe(data);
+
       const initialReactions = {};
-      res.data.forEach(v => {
-        if(v.reaktionen?.length) initialReactions[v.id] = v.reaktionen[0].emoji || v.reaktionen[0]; 
+      data.forEach(v => {
+        if (Array.isArray(v.reaktionen) && v.reaktionen.length > 0) {
+          initialReactions[v.id] = v.reaktionen[0]?.emoji || null;
+        }
       });
       setUserReactions(initialReactions);
     } catch (err) {
-      console.error(err);
+      console.error("Fehler beim Laden der Versprecher:", err);
     }
   };
 
@@ -31,7 +38,7 @@ const Versprecher = () => {
   const createVersprecher = async () => {
     if(!newText) return;
     try {
-      await axios.post("/api/versprecher/create", { text: newText, person: newPerson });
+      await axios.post("https://sprechfails-backend.onrender.com/api/versprecher/create", { text: newText, person: newPerson });
       setNewText("");
       fetchVersprecher();
     } catch(err){ console.error(err); }
@@ -39,7 +46,7 @@ const Versprecher = () => {
 
   const deleteVersprecher = async (id) => {
     try {
-      await axios.post("/api/versprecher/delete",{id});
+      await axios.post("https://sprechfails-backend.onrender.com/api/versprecher/delete",{id});
       fetchVersprecher();
     } catch(err){ console.error(err); }
   };
@@ -53,13 +60,13 @@ const Versprecher = () => {
     try {
       if(current === emoji){
         const reactionObj = versprecherListe.find(v => v.id === versprecher_id)
-                                            .reaktionen?.find(r => r.emoji === emoji);
+                                            ?.reaktionen?.find(r => r.emoji === emoji);
         if(reactionObj){
-          await axios.post("/api/reaktionen/delete",{id: reactionObj.id});
+          await axios.post("https://sprechfails-backend.onrender.com/api/reaktionen/delete",{id: reactionObj.id});
         }
         setUserReactions(prev=> ({...prev,[versprecher_id]: null}));
       } else {
-        await axios.post("/api/reaktionen/create",{versprecher_id, emoji});
+        await axios.post("https://sprechfails-backend.onrender.com/api/reaktionen/create",{versprecher_id, emoji});
         setUserReactions(prev => ({...prev,[versprecher_id]: emoji}));
       }
       setActivePalette(null);
@@ -86,7 +93,7 @@ const Versprecher = () => {
       </div>
 
       <div className="versprecher-list">
-        {versprecherListe.map(v=>(
+        {Array.isArray(versprecherListe) && versprecherListe.map(v=>(
           <div key={v.id} className="versprecher-card">
             <div className="versprecher-header">
               <span className="person">{v.person}</span>
@@ -95,7 +102,7 @@ const Versprecher = () => {
             <p className="text">{v.text}</p>
 
             <div className="reactions">
-              {v.reaktionen?.map((r, idx) => (
+              {Array.isArray(v.reaktionen) && v.reaktionen.map((r, idx) => (
                 <span key={idx} className="emoji">
                   {r.count > 1 ? `${r.emoji} x${r.count}` : r.emoji}
                 </span>
